@@ -1,15 +1,21 @@
 #include <SPI.h>
 #include <MFRC522.h>
 
+#define MaxGrasp 100
+#define MinGrasp 0
+#define MaxValue 4096
+#define MinValue 0
 
 MFRC522 rfid(SS_PIN, RST_PIN);
 
 void setup() {
   // put your setup code here, to run once:
-  float slidePot = 0.0; // this is for the wrist pot
-  float lightread = 0.0; // this is for the 
+  const int potPin = 34// placeholder pin number for now // this is for the wrist pot
+  int potValue = 0;
+  int grasp = 0;
 
-  Serial.begin(9600);
+
+  Serial.begin(115200);
   SPI.begin(); // init SPI bus
   rfid.PCD_Init(); // init MFRC522
 
@@ -36,4 +42,8 @@ void loop() {
     }
   }
 
+  potValue = analogRead(potPin);
+  grasp = (MaxGrasp - MinGrasp) ((potValue-MinValue)/(MaxValue-MinValue)) + MinGrasp;
+
+  delay(500);
 }
