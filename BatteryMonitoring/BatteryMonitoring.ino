@@ -92,16 +92,16 @@ void loop()
 
   ti=millis();
   duration = ti - lastti;
-  lastti = ti;
+  lastti = ti; // this section just measures the time gap between the last sample to calculate how much power was used.
 
   if(current_mA <0){current_mA =0;};
 
-  cpi += (current_mA/1000) * (duration/1000) ;// coulombs 
-  soc = maxCharge-cpi;
+  cpi += (current_mA/1000) * (duration/1000) ;// current is c/s so if you times by s, you are left with c. ta da 
+  soc = maxCharge-cpi; // state of charge is max charge minus the running total of coulombs 
 
-  timeLeft = soc/(current_mA/1000);
-  avgTimeLeft = timeLeft *alpha + ((1-alpha) *prevTimeLeft);
-  prevTimeLeft = timeLeft;
+  timeLeft = soc/(current_mA/1000); // this estimates the remaining time based on the soc
+  avgTimeLeft = timeLeft *alpha + ((1-alpha) *prevTimeLeft); // smoothing
+  prevTimeLeft = timeLeft; 
 
   Serial.print("SOC:  %");
   Serial.print(soc/maxCharge *100); 
@@ -124,42 +124,8 @@ void loop()
 
 
 
-  delay(1000);
-}
-
-
-/* This is the display code
-
-
-
-
-void setup() {
-  Serial.begin(115200);
-  while (!Serial) {
-    delay(10);
-  }
-
-#ifdef REASSIGN_PINS
-  SPI.begin(sck, miso, mosi, cs);
-  if (!SD.begin(cs)) {
-#else
-  if (!SD.begin()) {
-#endif
-    Serial.println("Card Mount Failed");
-    return;
-  }
-  uint8_t cardType = SD.cardType();
-
-  if (cardType == CARD_NONE) {
-    Serial.println("No SD card attached");
-    return;
-  }
-  setupFile(SD,"/batt_states");
-}
-
-void loop() {
-  // read battery states from SD, put into char arrays
-  readFile(SD,"/batt_states");
+// read battery states from SD, put into char arrays
+  readFile(SD,"/batt_states"); // can we check if this file exists first
   printchar("after sd reading: ");
 
   // copy char arrays into doubles
@@ -205,5 +171,6 @@ void loop() {
   //save values to the SD card
   writeFile(SD,"/batt_states");
 
-  delay(5000);
-}*/
+  delay(1000);
+}
+
