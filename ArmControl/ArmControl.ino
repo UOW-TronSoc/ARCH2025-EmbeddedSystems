@@ -44,6 +44,9 @@ void loop() {
 
   potValue = analogRead(potPin);
   grasp = (MaxGrasp - MinGrasp) ((potValue-MinValue)/(MaxValue-MinValue)) + MinGrasp;
+  Serial.print("Grasp size: ");
+  Serial.print(grasp);
+  Serial.println("%");
 
   delay(500);
 }
