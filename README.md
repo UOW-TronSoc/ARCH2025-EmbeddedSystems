@@ -3,11 +3,15 @@ This branch is for testing and implementation of an array of ESP32 sensors and h
 
 ---
 Message Format
-|---|---|
-| $ |Message Start|
-| ID | Sensor ID No from table below|
-| ~ | Seperate ID and Message
-| ` | Message End
+| Component | Desc                          |
+|-----------|-------------------------------|
+| $         |Message Start                  |
+| ID        | Sensor ID No from table below |
+| ~         | Seperate ID and Message       |
+| String/No.| Message Content               |
+| `         | Message End                   |
+
+**Full Format: $<ID>~<Content>`**
 
 
 ---
