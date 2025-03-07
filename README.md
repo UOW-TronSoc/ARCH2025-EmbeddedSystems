@@ -11,7 +11,7 @@ Message Format
 | String/No.| Message Content               |
 | `         | Message End                   |
 
-**Full Format: $<ID>~<Content>`**
+**Full Format: $<"ID">~<"Content">`**
 
 
 ---
