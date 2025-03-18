@@ -1,96 +1,68 @@
 #include <WiFi.h>
 #include <esp_now.h>
-#include <SPI.h>
-#include <MFRC522.h>
 
-// Define pins for the RFID RC522
-#define RST_PIN  5    // Reset pin (adjust as needed)
-#define SS_PIN   4    // SPI Slave Select pin
+// Replace with your receiver's MAC address for unicast; 
+// for testing, we'll use the broadcast address (all 0xFF).
+uint8_t receiverMACAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-// Define analog pin for the linear potentiometer
-#define POT_PIN  34   // Adjust based on your wiring
-
-MFRC522 mfrc522(SS_PIN, RST_PIN);
-
-// Replace with the receiver ESP32's MAC address (6 bytes)
-uint8_t receiverMACAddress[] = {0x24, 0x6F, 0x28, 0xAA, 0xBB, 0xCC}; // <-- Update this!
-
-// Callback function when data is sent
+// Callback to display send status
 void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  Serial.print("Last Packet Send Status: ");
+  Serial.print("Send Status: ");
   Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Success" : "Fail");
 }
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("Transmitter Starting...");
+  Serial.println("ESP-NOW Sender Starting...");
 
-  // Initialize SPI and RFID reader
-  SPI.begin();
-  mfrc522.PCD_Init();
-  Serial.println("RC522 RFID reader initialized.");
-
-  // Set WiFi to station mode and initialize ESP-NOW
+  // Set WiFi to station mode
   WiFi.mode(WIFI_STA);
+  
+  // Initialize ESP-NOW
   if (esp_now_init() != ESP_OK) {
     Serial.println("Error initializing ESP-NOW");
-    while (true); // halt
+    while (true); // halt if initialization fails
   }
-  
   esp_now_register_send_cb(onDataSent);
-  
-  // Register the peer (receiver)
+
+  // Register peer using broadcast (or update receiverMACAddress for unicast)
   esp_now_peer_info_t peerInfo;
+  memset(&peerInfo, 0, sizeof(peerInfo));
   memcpy(peerInfo.peer_addr, receiverMACAddress, 6);
-  peerInfo.channel = 0;  // use current channel
+  peerInfo.channel = 0;
+  peerInfo.ifidx = WIFI_IF_STA;
   peerInfo.encrypt = false;
   
   if (esp_now_add_peer(&peerInfo) != ESP_OK) {
     Serial.println("Failed to add ESP-NOW peer");
-    while (true); // halt
+    while (true);
   }
 }
 
 void loop() {
-  // --- Read from RFID RC522 ---
-  // Check if a new RFID card is present
-  if (mfrc522.PICC_IsNewCardPresent() && mfrc522.PICC_ReadCardSerial()) {
-    String rfidData = "";
-    // Concatenate UID bytes into a string (in HEX format)
-    for (byte i = 0; i < mfrc522.uid.size; i++) {
-      if (mfrc522.uid.uidByte[i] < 0x10) {
-        rfidData += "0";
-      }
-      rfidData += String(mfrc522.uid.uidByte[i], HEX);
+  // ----- 1. Send a periodic test message as sensor ID 1 -----
+  String periodicMsg = "$1~Hello from Sensor 1`";
+  int len1 = periodicMsg.length() + 1;
+  char buffer1[len1];
+  periodicMsg.toCharArray(buffer1, len1);
+  esp_now_send(receiverMACAddress, (uint8_t *)buffer1, len1);
+  Serial.print("Sent periodic message: ");
+  Serial.println(periodicMsg);
+
+  // ----- 2. Check for Serial input and send it as sensor ID 5 -----
+  if (Serial.available() > 0) {
+    String serialInput = Serial.readStringUntil('\n');
+    serialInput.trim();
+    if (serialInput.length() > 0) {
+      String serialMsg = "$5~" + serialInput + "`";
+      int len2 = serialMsg.length() + 1;
+      char buffer2[len2];
+      serialMsg.toCharArray(buffer2, len2);
+      esp_now_send(receiverMACAddress, (uint8_t *)buffer2, len2);
+      Serial.print("Sent serial message: ");
+      Serial.println(serialMsg);
     }
-    rfidData.toUpperCase();
-    // Construct message using sensor id 1 (for RFID) ending with backtick `
-    String message = "$1~" + rfidData + "`";
-    Serial.print("Sending RFID data: ");
-    Serial.println(message);
-    
-    // Convert String to char array and send via ESP-NOW
-    int msgLen = message.length() + 1;
-    char msgBuffer[msgLen];
-    message.toCharArray(msgBuffer, msgLen);
-    esp_now_send(receiverMACAddress, (uint8_t *)msgBuffer, msgLen);
-    
-    // Halt the card until it is removed
-    mfrc522.PICC_HaltA();
-    delay(500);
   }
-  
-  // --- Read from Linear Potentiometer ---
-  int potValue = analogRead(POT_PIN);
-  // Construct message using sensor id 2 (for potentiometer) ending with backtick `
-  String potMessage = "$2~" + String(potValue) + "`";
-  Serial.print("Sending Potentiometer data: ");
-  Serial.println(potMessage);
-  
-  int potMsgLen = potMessage.length() + 1;
-  char potMsgBuffer[potMsgLen];
-  potMessage.toCharArray(potMsgBuffer, potMsgLen);
-  esp_now_send(receiverMACAddress, (uint8_t *)potMsgBuffer, potMsgLen);
-  
-  delay(1000);  // Adjust loop delay as needed
+
+  delay(2000);  // Wait 2 seconds before next loop iteration
 }
